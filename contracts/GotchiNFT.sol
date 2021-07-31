@@ -2,10 +2,14 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
+import "hardhat/console.sol";
+
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
 
 contract GotchiNFT is ERC721 {
+    using SafeMath for uint256;
     using Counters for Counters.Counter;
 
     enum MintingStatus {
@@ -22,6 +26,9 @@ contract GotchiNFT is ERC721 {
     struct GotchiStatus {
         MintingStatus mintingStatus;
         Rarity rarity;
+        uint256 untilAbleToInject;
+        uint256 sinovacTaked;
+        uint256 power;
     }
 
     // Modifier
@@ -35,6 +42,9 @@ contract GotchiNFT is ERC721 {
     // Events
     event NewGotchiPropose(uint8 role, string tokenURI, uint256 id);
     event NewGotchiValidated(uint256 id, bool status);
+
+    // Constant
+    uint256 constant timeBetweenShots = 1 minutes;
 
     // State Variables
     Counters.Counter private _tokenIds;
@@ -58,7 +68,10 @@ contract GotchiNFT is ERC721 {
         // create new gotchi status set minting status to pending
         gotchiStatus[newItemId] = GotchiStatus(
             MintingStatus.PENDING,
-            getGotchiRarity(uint256(msg.sender))
+            getGotchiRarity(uint256(msg.sender)),
+            block.timestamp,
+            0,
+            0
         );
 
         emit NewGotchiPropose(role, tokenURI, newItemId);
@@ -108,7 +121,7 @@ contract GotchiNFT is ERC721 {
                 keccak256(
                     abi.encodePacked(block.timestamp, block.difficulty, seed)
                 )
-            ) % range;
+            ).mod(range);
     }
 
     function getGotchiRarity(uint256 seed) internal view returns (Rarity) {
@@ -120,6 +133,52 @@ contract GotchiNFT is ERC721 {
             return Rarity.RARE;
         } else {
             return Rarity.COMMON;
+        }
+    }
+
+    function inject(uint256 id) public {
+        GotchiStatus memory gotchiInfo = gotchiStatus[id];
+
+        //TODO: Check for owner
+        require(
+            ownerOf(id) == msg.sender,
+            "Not your Gotchi!"
+        );
+        require(
+            gotchiInfo.mintingStatus == MintingStatus.MINTED,
+            "Gotchi is not minted"
+        );
+        require(
+            block.timestamp >= gotchiInfo.untilAbleToInject,
+            "Not ready for Sinovac"
+        );
+
+        gotchiInfo.untilAbleToInject = block.timestamp.add(timeBetweenShots);
+        gotchiInfo.sinovacTaked = gotchiInfo.sinovacTaked.add(1);
+        gotchiInfo.power = gotchiInfo.power.add(calculatePowerUp(id));
+
+        if (gotchiInfo.power > 250) {
+            gotchiInfo.power = 250;
+        }
+
+        gotchiStatus[id] = gotchiInfo;
+    }
+
+    function calculatePowerUp(uint256 id) internal view returns (uint256) {
+        GotchiStatus memory gotchiInfo = gotchiStatus[id];
+
+        uint256 powerup = randomNumber(uint256(msg.sender), 11);
+
+        if (gotchiInfo.rarity == Rarity.EPIC) {
+            powerup = powerup.add(5);
+        } else if (gotchiInfo.rarity == Rarity.RARE) {
+            powerup = powerup.add(2);
+        }
+
+        if (powerup < 10) {
+            return powerup;
+        } else {
+            return 10;
         }
     }
 }
