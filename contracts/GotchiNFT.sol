@@ -2,8 +2,6 @@
 pragma solidity 0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "hardhat/console.sol";
-
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
@@ -139,7 +137,6 @@ contract GotchiNFT is ERC721 {
     function inject(uint256 id) public {
         GotchiStatus memory gotchiInfo = gotchiStatus[id];
 
-        //TODO: Check for owner
         require(
             ownerOf(id) == msg.sender,
             "Not your Gotchi!"
@@ -157,6 +154,7 @@ contract GotchiNFT is ERC721 {
         gotchiInfo.sinovacTaked = gotchiInfo.sinovacTaked.add(1);
         gotchiInfo.power = gotchiInfo.power.add(calculatePowerUp(id));
 
+        // Max power is 250
         if (gotchiInfo.power > 250) {
             gotchiInfo.power = 250;
         }
