@@ -1,5 +1,6 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity 0.6.12;
+pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
@@ -7,9 +8,20 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 contract GotchiNFT is ERC721 {
     using Counters for Counters.Counter;
 
-    enum GotchiStatus {
+    enum MintingStatus {
         PENDING,
         MINTED
+    }
+
+    enum Rarity {
+        COMMON,
+        RARE,
+        EPIC
+    }
+
+    struct GotchiStatus {
+        MintingStatus mintingStatus;
+        Rarity rarity;
     }
 
     // Modifier
@@ -40,11 +52,14 @@ contract GotchiNFT is ERC721 {
         _tokenIds.increment();
 
         uint256 newItemId = _tokenIds.current();
-        _mint(msg.sender, newItemId);
+        _safeMint(msg.sender, newItemId);
         _setTokenURI(newItemId, tokenURI);
 
-        // Set status of Gotchi to pending
-        gotchiStatus[newItemId] = GotchiStatus.PENDING;
+        // create new gotchi status set minting status to pending
+        gotchiStatus[newItemId] = GotchiStatus(
+            MintingStatus.PENDING,
+            getGotchiRarity(uint256(msg.sender))
+        );
 
         emit NewGotchiPropose(role, tokenURI, newItemId);
 
@@ -52,11 +67,15 @@ contract GotchiNFT is ERC721 {
     }
 
     function validate(uint256 id, bool status) public onlyValidator {
-        require(gotchiStatus[id] != GotchiStatus.MINTED, "Already validated!");
+        require(
+            gotchiStatus[id].mintingStatus != MintingStatus.MINTED,
+            "Already validated!"
+        );
+        require(_exists(id), "Gotchi is not exists");
 
         if (status) {
             // set status to minted
-            gotchiStatus[id] = GotchiStatus.MINTED;
+            gotchiStatus[id].mintingStatus = MintingStatus.MINTED;
         } else {
             // burn that id
             _burn(id);
@@ -67,5 +86,40 @@ contract GotchiNFT is ERC721 {
 
     function setValidator(address _validator) public onlyValidator {
         validator = _validator;
+    }
+
+    // Game functions
+    function getGotchiInfo(uint256 id)
+        public
+        view
+        returns (GotchiStatus memory)
+    {
+        require(_exists(id), "Gotchi is not exists");
+        return gotchiStatus[id];
+    }
+
+    function randomNumber(uint256 seed, uint256 range)
+        internal
+        view
+        returns (uint256)
+    {
+        return
+            uint256(
+                keccak256(
+                    abi.encodePacked(block.timestamp, block.difficulty, seed)
+                )
+            ) % range;
+    }
+
+    function getGotchiRarity(uint256 seed) internal view returns (Rarity) {
+        uint256 rand = randomNumber(seed, uint256(1001));
+
+        if (0 <= rand && rand <= 100) {
+            return Rarity.EPIC;
+        } else if (100 < rand && rand <= 400) {
+            return Rarity.RARE;
+        } else {
+            return Rarity.COMMON;
+        }
     }
 }

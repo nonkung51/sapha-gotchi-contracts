@@ -21,6 +21,22 @@ describe("Gotchi NFT", function () {
 			.withArgs(0, "ipfs://somewhere.jpg", 1);
 	});
 
+  it("Should produce rarity with right ratio", async function () {
+		for (let i = 0; i < 100; i++) {
+      await gotchiNft.propose(0, "ipfs://somewhere.jpg");
+    }
+    let rarity = [0, 0, 0];
+
+		for (let j = 1; j < 101; j++) {
+      rarity[(await gotchiNft.getGotchiInfo(j))[1]] += 1;
+    }
+
+    // tolerence for 30% error
+    expect(rarity[0] / 100).to.be.closeTo(0.6, 0.18);
+    expect(rarity[1] / 100).to.be.closeTo(0.3, 0.09);
+    expect(rarity[2] / 100).to.be.closeTo(0.1, 0.03);
+	});
+
 	it("Should be able to confirm after propose Gotchi", async function () {
 		await gotchiNft.propose(0, "ipfs://somewhere.jpg");
 
