@@ -122,6 +122,13 @@ contract GotchiNFT is ERC721 {
             ).mod(range);
     }
 
+    function burn(uint256 tokenId) public {
+        require(_exists(tokenId), "Gotchi is not exists");
+        require(ownerOf(tokenId) == msg.sender, "Not owner");
+
+        _burn(tokenId);
+    }
+
     function getGotchiRarity(uint256 seed) internal view returns (Rarity) {
         uint256 rand = randomNumber(seed, uint256(1001));
 
